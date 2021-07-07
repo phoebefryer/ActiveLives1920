@@ -1129,3 +1129,25 @@ Walking %>%
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
+
+##Walking for Leisure ----
+Walking %>%
+  filter(Release != "Nov 15-16") %>%
+  filter(Release != "May 16-17") %>%
+  filter(Release != "Nov 16-17") %>%
+  filter(Release != "May 17-18") %>%
+  filter(Demographic == "Walking for leisure") %>%
+  ggplot(aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+  geom_line(size = 1) +
+  geom_text(aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            nudge_y = 2) +
+  ylim(20,60) +
+  theme_GS() +
+  scale_color_manual(values = GS_cols %>% unname) +
+  labs(title = "Walking Rates in Greater Manchester",
+       subtitle = "Adults who have walked for leisure at least twice in the past 28 days",
+       y = "Participation Rate (%)",
+       caption = "**Source:** Sport England Active Lives Survey") +
+  theme(legend.position = "none",
+        plot.caption = element_markdown())
+
