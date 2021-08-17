@@ -378,6 +378,38 @@ ActiveLivesInactivePop %>%
   ylab("Inactivity rate (%)") +
   xlab("")
 
+#GMM Line Yearly Releases
+ActiveLivesInactivePop %>%
+  filter(Area == "Greater Manchester"|Area == "England") %>%
+  filter(Release != "May 16-17") %>%
+  filter(Release != "May 17-18") %>%
+  filter(Release != "May 18-19") %>%
+  filter(Release != "May 19-20") %>%
+  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  geom_line(size = 1) +
+  geom_text(data = ActiveLivesInactivePop %>%
+              filter(Area == "Greater Manchester"|Area == "England") %>%
+              filter(Release == "Nov 19-20"),
+            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            nudge_y = 0.4) +
+  geom_text(data = ActiveLivesInactivePop %>%
+              filter(Area == "Greater Manchester"|Area == "England") %>%
+              filter(Release == "Nov 15-16"),
+            aes(label = Area),
+            hjust = 0,
+            vjust = -1,
+            fontface = "bold") +
+  ylim(20, 35) +
+  labs(title = "Inactivity Levels Over Time",
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GMM2() +
+  theme(plot.title = element_text(),
+        plot.caption = element_markdown(),
+        legend.position = "none") +
+  scale_color_manual(values = GMM_cols %>% unname) +
+  ylab("Inactivity rate (%)") +
+  xlab("")
+
 ##Borough Comparison
 
 ActiveLivesPercents %>% filter(Release == "Nov 19-20") %>%
