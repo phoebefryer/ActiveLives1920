@@ -3,6 +3,7 @@ library(ggfittext)
 
 
 # Rounding ----------------------------------------------------------------
+#This is just a function, this doesn't need editing just run it
 
 round2 = function(x, n) {
   posneg = sign(x)
@@ -14,26 +15,33 @@ round2 = function(x, n) {
 }
 
 # Data Import and Wrangle -------------------------------------------------
+## This is to set up all the data you will need for the graphs.
+## Most of this you can just run straight away only a couple of pieces of code need changing
+## these are generally to do with releases and changing for the latest one
 
-##Import
+## Import base data ----
+### This can be updated to the latest version or wherever you have it saved, if you are copying
+### a file location you need to reverse the \ e.g. Documents\Active Lives becomes Documents/Active Lives
+
 ActiveLives <- read_excel("data/Active Lives Template v22.xlsx", 
                           sheet = "Full Adult Active Lives")
 
-##Wrangle
+### Wrangle, this is dropping certain rows and columns that we don't need
 ActiveLives <- ActiveLives %>%
   filter(Release != "Total change") %>%
   subset(select = -c(95:98, 102:108))
 
+### Switch from wide to long
 ActiveLives <- pivot_longer(ActiveLives, 3:97)
 
-ActiveLives$Release <- factor(ActiveLives$Release, levels = 
-                                c("Nov 15-16", "May 16-17", "Nov 16-17",
-                                  "May 17-18", "Nov 17-18", "May 18-19",
-                                  "Nov 18-19", "May 19-20", "Nov 19-20"), ordered = TRUE)
+### remove non-release values
+ActiveLives <- ActiveLives %>%
+  filter(Release != "12 monthchange") %>%
+  filter(Release != "Total change")
 
 
-
-##Columns
+### Columns ----
+#### Adding in a new column based on activity level
 ActiveLives <- ActiveLives %>%
   mutate(ActivityLevel = 
            ifelse(
@@ -51,6 +59,7 @@ ActiveLives <- ActiveLives %>%
             )))))))
 
 
+#### New column to group demographics
 ActiveLives <- ActiveLives %>%
   mutate(DemographicType = 
            case_when(
@@ -71,7 +80,7 @@ ActiveLives <- ActiveLives %>%
              NULL
            ))
 
-##Simplify column values
+#### Simplify column values
 ActiveLives$name <- gsub(" FA", "", as.character(ActiveLives$name))
 ActiveLives$name <- gsub(" I", "", as.character(ActiveLives$name))
 ActiveLives$name <- gsub("Active - ", "", as.character(ActiveLives$name))
@@ -83,7 +92,19 @@ ActiveLives$name <- gsub("Fairly Active", "Total Population", as.character(Activ
 ActiveLives$Area <- gsub("GM", "Greater Manchester", as.character(ActiveLives$Area))
 ActiveLives$name <- gsub("Fairly ", "", as.character(ActiveLives$name))
 
+#### Column rename
+ActiveLives <- ActiveLives %>%
+  rename("Demographic" = "name",
+         "Value" = "value")
 
+### Release order ----
+#### You need to add new releases
+ActiveLives$Release <- factor(ActiveLives$Release, levels = 
+                                c("Nov 15-16", "May 16-17", "Nov 16-17",
+                                  "May 17-18", "Nov 17-18", "May 18-19",
+                                  "Nov 18-19", "May 19-20", "Nov 19-20"), ordered = TRUE)
+
+### Area order ----
 ActiveLives$Area <- factor(ActiveLives$Area, levels = 
                              c("England", "Greater Manchester",
                                "Bolton", "Bury", "Manchester",
@@ -91,38 +112,38 @@ ActiveLives$Area <- factor(ActiveLives$Area, levels =
                                "Stockport", "Tameside",
                                "Trafford", "Wigan"), ordered = TRUE)
 
-##Column rename
-ActiveLives <- ActiveLives %>%
-  rename("Demographic" = "name",
-         "Value" = "value")
+## Percent dataset ----------------------------------------------------------------
 
 ActiveLivesPercents <- ActiveLives %>%
   filter(Demographic != "Numbers")
 
 ActiveLivesPercents$Value <- ActiveLivesPercents$Value*100
 
-ActiveLives$Value <- format(ActiveLives$Value, scientific = F, na.encode = T)
-
-##latest and earliest
+### Latest and earliest
+### Amend latest release
 ActiveLivesSummary <- ActiveLives %>%
-  filter(Release == min(Release) | Release == max(Release))
+  filter(Release == "Nov 15-16" | Release == "Nov 19-20")
 
-GM_pop <- ActiveLives %>%
-  filter(Area == "Greater Manchester") %>%
-  filter(Release == "Nov 19-20") %>%
-  filter(Demographic == "Total Population")
-
-##Inactive
+### Inactive only ----
 
 ActiveLivesInactivePop <- ActiveLives %>% 
   filter(ActivityLevel == "Inactive") %>%
   filter(Demographic == "Total Population") 
 
+ActiveLivesInactivePop$Value <- ActiveLivesInactivePop$Value*100
+
 ActiveLivesSummaryInactivePop <- ActiveLivesSummary %>% 
   filter(ActivityLevel == "Inactive") %>%
   filter(Demographic == "Total Population")
 
-##GM Inactive - all demographics
+#### Latest data ----
+# Need to amend the latest release
+inactiveDataEnd <-  ActiveLives %>% 
+  filter(ActivityLevel == "Inactive") %>%
+  filter(Demographic == "Total Population") %>%
+  filter(Release == "Nov 19-20")
+
+## GM Inactive - all demographics ----
 
 ActiveLivesGM <- ActiveLives %>%
   filter(ActivityLevel == "Inactive") %>%
@@ -130,16 +151,9 @@ ActiveLivesGM <- ActiveLives %>%
   filter(Demographic != "Numbers") %>%
   filter(Demographic != "16-54") %>%
   filter(Demographic != "55+")
-  
 
-##Latest data
-inactiveDataEnd <-  ActiveLives %>% 
-  filter(ActivityLevel == "Inactive") %>%
-  filter(Demographic == "Total Population") %>%
-  filter(Release == max(Release))
-
-
-##NS-SEC
+## Demographics ----
+### NS-SEC ----
 
 NSSECInactive <- ActiveLives %>%
   filter(Area == "Greater Manchester") %>%
@@ -147,24 +161,33 @@ NSSECInactive <- ActiveLives %>%
   filter(DemographicType == "Socio-economic") %>%
   filter(Demographic != "NS SEC 9: Students and other")
 
+NSSECInactive$Value <- NSSECInactive$Value*100 
+
 NSSECInactiveStudent <- ActiveLives %>%
   filter(Area == "Greater Manchester") %>%
   filter(ActivityLevel == "Inactive") %>%
   filter(DemographicType == "Socio-economic") 
 
+NSSECInactiveStudent$Value <- NSSECInactiveStudent$Value*100 
+
 NSSECInactiveArea <- ActiveLives %>%
   filter(ActivityLevel == "Inactive") %>%
   filter(DemographicType == "Socio-economic") %>%
   filter(Demographic != "NS SEC 9: Students and other")
+
+NSSECInactiveArea$Value <- NSSECInactiveArea$Value*100 
+
   
-##Gender
+### Gender ----
 
 GenderInactive <- ActiveLives %>%
   filter(Area == "Greater Manchester") %>%
   filter(ActivityLevel == "Inactive") %>%
   filter(DemographicType == "Gender")
 
-##Age
+GenderInactive$Value <- GenderInactive$Value*100 
+
+### Age ----
 
 AgeInactive <- ActiveLives %>%
   filter(Area == "Greater Manchester") %>%
@@ -173,15 +196,18 @@ AgeInactive <- ActiveLives %>%
   filter(Demographic != "16-54") %>%
   filter(Demographic != "55+")
 
+AgeInactive$Value <- AgeInactive$Value*100 
 
-##Disability
+### Disability ----
 
 DisabilityInactive <- ActiveLives %>%
   filter(Area == "Greater Manchester") %>%
   filter(ActivityLevel == "Inactive") %>%
   filter(DemographicType == "Disability")
 
-##Ethnicity
+DisabilityInactive$Value <- DisabilityInactive$Value*100 
+
+### Ethnicity ----
 
 EthnicityInactive <- ActiveLives %>%
   filter(Area == "Greater Manchester") %>%
@@ -190,13 +216,15 @@ EthnicityInactive <- ActiveLives %>%
   filter(Demographic != "Chinese" ) %>%
   filter(Demographic != "Mixed")
 
+EthnicityInactive$Value <- EthnicityInactive$Value*100 
 
-# Gaps Import -------------------------------------------------------------
+
+## Gaps Import -------------------------------------------------------------
 
 ActiveLivesGaps <- read_excel("data/Active Lives Template v22.xlsx", 
                           sheet = "Full Adult Active Lives")
 
-##Wrangle
+## Wrangle and drop all unnecessary columns
 ActiveLivesGaps <- ActiveLivesGaps %>%
   filter(Release != "Total change") %>%
   subset(select = -c(3:94, 99:108))
@@ -205,13 +233,13 @@ ActiveLivesGaps <- pivot_longer(ActiveLivesGaps, 3:6)
 
 ActiveLivesGaps$Area <- gsub("GM", "Greater Manchester", as.character(ActiveLivesGaps$Area))
 
-
+### Release order ----
 ActiveLivesGaps$Release <- factor(ActiveLivesGaps$Release, levels = 
                                 c("Nov 15-16", "May 16-17", "Nov 16-17",
                                   "May 17-18", "Nov 17-18", "May 18-19",
                                   "Nov 18-19", "May 19-20", "Nov 19-20"), ordered = TRUE)
 
-
+### Area order ----
 ActiveLivesGaps$Area <- factor(ActiveLivesGaps$Area, levels = 
                              c("England", "Greater Manchester",
                                "Bolton", "Bury", "Manchester",
@@ -219,7 +247,7 @@ ActiveLivesGaps$Area <- factor(ActiveLivesGaps$Area, levels =
                                "Stockport", "Tameside",
                                "Trafford", "Wigan"), ordered = TRUE)
 
-##Column rename
+## Column rename
 ActiveLivesGaps <- ActiveLivesGaps %>%
   rename("Gap" = "name",
          "Value" = "value")
@@ -227,109 +255,19 @@ ActiveLivesGaps <- ActiveLivesGaps %>%
 ActiveLivesGaps$Value <- ActiveLivesGaps$Value*-100
 
 
-# Sig Change --------------------------------------------------------------
+# Graphs ------------------------------------------------------------------
 
-change <- read_excel("data/Active Lives Template v21.xlsx", 
-                     sheet = "Full Adult Active Lives")
-
-##Wrangle
-change <- change %>%
-  filter(Release != "Total change") %>%
-  subset(select = -c(3:102))
-
-change <- pivot_longer(change, 3:8)
-
-change <- change %>%
-  mutate(ActivityLevel = 
-           ifelse(
-             grepl("Fairly Active", name), "Fairly Active",
-               ifelse(
-                 grepl("Inactive", name), "Inactive", "Active"
-                     )))
-
-change$name <- gsub("Fairly Active ", "", as.character(change$name))
-change$name <- gsub("Active ", "", as.character(change$name))
-change$name <- gsub("Inactive ", "", as.character(change$name))
-change$Demographic <- "Numbers"
-
-changeBase <- change %>% 
-  filter(name == "Change Since Baseline") %>%
-  rename("Change Since Baseline" = "value") %>%
-  select(-name)
-
-change12 <- change %>%
-  filter(name == "Change Past 12") %>%
-  rename("Change Past 12" = "value")  %>%
-  select(-name)
-
-##Merge
-
-change <- merge(changeBase, change12, by = c("Area", "Release", 
-                                             "ActivityLevel", "Demographic"))
-ActiveLives <- left_join(ActiveLives, change, by = c("Area", "Release", 
-                                                 "ActivityLevel", "Demographic"))
-
-# Graphs General------------------------------------------------------------------
-
-
-##General Inactive
-
-ggplot(data = ActiveLivesInactivePop,
-       aes(x = Release, y = Value*100, color = Area, group = Area)) +
-  geom_line() +
-  geom_text(data = ActiveLivesSummaryInactivePop,
-            aes(x = Release, y = Value*100, color = Area, group = Area, label = Value*100),
-            show.legend = FALSE,
-            vjust = -0.25,
-            hjust = -1) +
-  theme_GMM() +
-  scale_color_manual(values = GMM_cols %>% unname) +
-  ylab("Inactivity rate (%)") +
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.key = element_rect(fill = "white")) 
-  
-
-  
-ggplot(data = ActiveLivesInactivePop,
-       aes(x = Release, y = Value*100, color = Area, group = Area)) +
-  geom_line() +
-  geom_text_repel(data = inactiveDataEnd,
-            aes(x = Release, y = Value*100, color = Area, group = Area, label = Value*100),
-            show.legend = FALSE,
-            vjust = -0.25,
-            hjust = -.25) +
-  theme_GMM() +
-  scale_color_manual(values = GMM_cols %>% unname) +
-  ylab("Inactivity rate (%)") +
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.key = element_rect(fill = "white")) 
-
-##GM Activity
+## GM and England comparison ----
+#### GreaterSport Branding ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "England") %>%
-ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
-  geom_line(size = 1) +
-  geom_text(aes(label = paste(sprintf("%0.2f", round(Value*100, digits = 2)),"%")),
-            nudge_y = 0.4) +
-  theme_GMM() +
-  scale_color_manual(values = GMM_cols %>% unname) +
-  ylab("Inactivity rate (%)") +
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        legend.key = element_rect(fill = "white")) 
-
-##Playing with formatting
-ActiveLivesInactivePop %>%
-  filter(Area == "Greater Manchester"|Area == "England") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "England") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "England") %>%
@@ -338,9 +276,12 @@ ActiveLivesInactivePop %>%
             hjust = 0,
             vjust = -1,
             fontface = "bold") +
+  # ylim() sets the y-axis limits so this may need changing on some graphs where new releases
+  # fall outside the exisiting limits. This can be removed with no issue and won't break
+  # anything it just makes for neater graphs in some instances
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-    caption = "**Source:** *Sport England, Active Lives Survey*") +
+    caption = "**Source:** Sport England, Active Lives Survey") +
   theme_GS() +
   theme(plot.title = element_text(
     color = "#5B2D86"),
@@ -350,15 +291,16 @@ ActiveLivesInactivePop %>%
   ylab("Inactivity rate (%)") +
   xlab("")
 
-#GMM Branding
+#### GMM Branding ----
+
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "England") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "England") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "England") %>%
@@ -378,19 +320,22 @@ ActiveLivesInactivePop %>%
   ylab("Inactivity rate (%)") +
   xlab("")
 
-#GMM Line Yearly Releases
+#### GMM Line Yearly Releases ----
+##### Just shows annual data, each November release
+##### GMM branding
+
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "England") %>%
   filter(Release != "May 16-17") %>%
   filter(Release != "May 17-18") %>%
   filter(Release != "May 18-19") %>%
   filter(Release != "May 19-20") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "England") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "England") %>%
@@ -410,7 +355,7 @@ ActiveLivesInactivePop %>%
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Borough Comparison
+## Borough Comparison ----
 
 ActiveLivesPercents %>% filter(Release == "Nov 19-20") %>%
   filter(ActivityLevel == "Active" | ActivityLevel == "Fairly Active") %>%
@@ -430,50 +375,33 @@ ActiveLivesPercents %>% filter(Release == "Nov 19-20") %>%
   scale_x_continuous(limits = c(0,100),
                      expand = c(0,2)) +
   labs(title = "Moving Rates by Area",
-       caption = "Source: Sport England, Active Lives Survey, November 2019-20",
+       caption = "**Source:** Sport England, Active Lives Survey, November 2019-20",
        fill = "Activity Level") +
-  theme_GMM() +
+  theme_GS() +
   theme(plot.title = element_text(
     color = "#5B2D86"
   ),
-  legend.position = c(0.9, 0.87)) +
+  legend.position = c(0.9, 0.87),
+  panel.grid.major.x = element_line(color = "#a3a3a2"), 
+  panel.grid.major.y = element_blank()
+  ) +
   scale_fill_manual(values = GS_cols %>% unname,
                     breaks = c("Active", "Fairly Active")) +
   xlab("Activity rate (%)")  +
   ylab("") 
 
-TamesideFA <- ActiveLives %>% 
-  filter(ActivityLevel == "Fairly Active") %>%
-  filter(Demographic == "Total Population") %>%
-  filter(Area == "Tameside") 
+## Borough Lines -----------------------------------------------------------
 
-ActiveLivesPercents %>% 
-  filter(ActivityLevel == "Fairly Active") %>%
-  filter(Demographic == "Total Population") %>%
-  filter(Area == "Tameside") 
-
-
-##GM all demographics
-
-ggplot(ActiveLivesGM, aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
-  geom_line() +
-  theme_GS() +
-  ylab("Inactivity rate (%)") +
-  xlab("")
-
-
-# Borough Lines -----------------------------------------------------------
-
-##Bolton
+### Bolton ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Bolton"|Area == "Greater Manchester") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Bolton"|Area == "Greater Manchester") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Bolton") %>%
@@ -491,25 +419,26 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(25, 40) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Bury
+### Bury ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Bury") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Bury") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4,
             hjust = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
@@ -521,26 +450,27 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
 
-## Manchester 
+### Manchester ---- 
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Manchester") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Manchester") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4,
             nudge_x = 0.2) +
   geom_text(data = ActiveLivesInactivePop %>%
@@ -552,26 +482,27 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
 
-##Oldham 
+### Oldham ---- 
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Oldham") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Oldham") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Oldham") %>%
@@ -582,26 +513,27 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +  
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Rochdale
+### Rochdale ----
 
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Rochdale") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Rochdale") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Rochdale") %>%
@@ -612,25 +544,26 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 40) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Salford
+### Salford ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Salford") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Salford") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Salford") %>%
@@ -641,25 +574,26 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Stockport
+### Stockport ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Stockport") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Stockport") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Stockport") %>%
@@ -670,25 +604,26 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(15, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Tameside
+### Tameside ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Tameside") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Tameside") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.5,
             nudge_x = 0.2) +
   geom_text(data = ActiveLivesInactivePop %>%
@@ -700,25 +635,26 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Trafford
+### Trafford ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Trafford") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Trafford") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Trafford") %>%
@@ -729,25 +665,26 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 35) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
-##Wigan
+### Wigan ----
 
 ActiveLivesInactivePop %>%
   filter(Area == "Greater Manchester"|Area == "Wigan") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Area, group = Area)) +
+  ggplot(aes(x = Release, y = Value, color = Area, group = Area)) +
   geom_line(size = 1) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Wigan") %>%
               filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_y = 0.4) +
   geom_text(data = ActiveLivesInactivePop %>%
               filter(Area == "Greater Manchester"|Area == "Wigan") %>%
@@ -758,25 +695,25 @@ ActiveLivesInactivePop %>%
             fontface = "bold") +
   ylim(20, 40) +
   labs(title = "Inactivity Levels Over Time",
-       caption = "Source: Sport England, Active Lives Survey") +
-  theme_GMM() +
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme_GS() +
   theme(plot.title = element_text(
-    color = "#5B2D86"
-  )) +
+    color = "#5B2D86"),
+    plot.caption = element_markdown(),
+    legend.position = "none") +
   scale_color_manual(values = GS_cols %>% unname) +
   ylab("Inactivity rate (%)") +
   xlab("")
 
 
-# Graphs Demographics -----------------------------------------------------
+## Demographics -----------------------------------------------------
 
+### NS-SEC ----
 
-###NS-SEC
-
-#GM
+#### GM ----
 
 ggplot(data = NSSECInactive,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+       aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
   geom_text(data = NSSECInactive %>% filter(Release == "Nov 15-16"),
             aes(label = c(
@@ -788,54 +725,29 @@ ggplot(data = NSSECInactive,
             vjust = -1,
             fontface = "bold") +
   geom_text(data = NSSECInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_x = 0.3) +
   ylim(15,45) +
   theme_GS() +
   scale_color_manual(values = GS_cols %>% unname) +
   labs(title = "Greater Manchester Inactivity Rate By Socio-Economic Group",
        y = "Inactivity Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
+       caption = "**Source:** Sport England Active Lives Survey") +
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
-##Includes students
-
-ggplot(data = NSSECInactiveStudent,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
-  geom_line(size = 1) +
-  geom_text(data = NSSECInactive %>% filter(Release == "Nov 15-16"),
-            aes(label = c(
-              "NS-SEC 1-2",
-              "NS SEC 3-5",
-              "NS SEC 6-8"
-            )),
-            hjust = 0,
-            vjust = -1,
-            fontface = "bold") +
-  geom_text(data = NSSECInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
-            nudge_x = 0.3) +
-  ylim(15,45) +
-  theme_GS() +
-  scale_color_manual(values = GS_cols %>% unname) +
-  labs(title = "Greater Manchester Inactivity Rate By Socio-Economic Group",
-       y = "Inactivity Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
-  theme(legend.position = "none",
-        plot.caption = element_markdown())
-
-#Borough Gap Comparison
+#### Borough Gap Comparison ----
 
 ActiveLivesGaps %>%
   filter(Release == "Nov 19-20") %>%
   filter(Gap == "Inactive Socio-Economic Gap") %>%
+  filter(Area != "Trafford") %>%
   ggplot(aes(x = Value, y = Area, fill = Gap,
              label = paste(sprintf("%0.1f", round2(Value, 1)),"%"))) +
   geom_bar(stat = "identity") +
   geom_bar_text(color = "white") +
   labs(title = "Socio-Economic Inactivity Gap by Area",
-       caption = "**Source:** *Sport England, Active Lives Survey, November 2019-20*",
+       caption = "**Source:** Sport England, Active Lives Survey, November 2019-20",
        fill = "Activity Level") +
   scale_y_discrete(limits = rev,
                    expand = c(0,0)) +
@@ -855,50 +767,10 @@ ActiveLivesGaps %>%
 
 
 
-##Foundation
-
-ActiveLives %>% filter(Area == "Bolton") %>%
-  filter(DemographicType == "Socio-economic") %>%
-  filter(Demographic != "NS SEC 9: Students and other") %>%
-  filter(ActivityLevel == "Inactive") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
-  geom_line(size = 1) +
-  theme_GMM() +
-  scale_color_manual(values = GMM_cols %>% unname) +
-  theme(legend.title = element_blank(),
-        legend.key = element_rect(fill = "white"),
-        plot.subtitle = element_text(hjust = 0)) +
-    geom_text(data = NSSECInactive %>% filter(Release == "Nov 15-16"),
-              aes(label = c(
-                "NS-SEC 1-2",
-                "NS SEC 3-5",
-                "NS SEC 6-8"
-              )),
-              hjust = 0,
-              vjust = -1,
-              fontface = "bold") +
-  geom_text(data = NSSECInactiveArea %>% 
-              filter(Area == "Bolton") %>%
-              filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.2f", round(Value*100, digits = 2)),"%")),
-            nudge_x = 0.3)  +
-  labs(title = "Bolton Inactivity Rate By Socio-Economic Group",
-       subtitle = "The socio-economic inactivity gap in Greater Manchester is 19.4%,\n this has wideded since baseline by 0.8%.",
-       y = "Inactivity Rate (%)",
-       caption = "Source: Sport England Active Lives Survey") +
-  theme(legend.title = element_blank(),
-        legend.key = element_rect(fill = "white"),
-        plot.subtitle = element_text(hjust = 0))
-
- 
-    
-###GM
-
-
-##Age
+### Age ----
 
 ggplot(data = AgeInactive,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+       aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
   geom_text(data = AgeInactive %>% filter(Release == "Nov 15-16"),
             aes(label = Demographic),
@@ -906,18 +778,18 @@ ggplot(data = AgeInactive,
             vjust = -1,
             fontface = "bold") +
   geom_text(data = AgeInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_x = 0.3) +
   ylim(15,60) +
   theme_GS() +
   scale_color_manual(values = GS_cols %>% unname) +
   labs(title = "Greater Manchester Inactivity Rate By Age Group",
        y = "Inactivity Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
+       caption = "**Source:** Sport England Active Lives Survey") +
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
-# Borough Comparison
+#### Borough Comparison ----
 
 ActiveLivesGaps %>%
   filter(Release == "Nov 19-20") %>%
@@ -927,7 +799,7 @@ ActiveLivesGaps %>%
   geom_bar(stat = "identity") +
   geom_bar_text(color = "white") +
   labs(title = "Inactivity Age Gap by Area",
-       caption = "**Source:** *Sport England, Active Lives Survey, November 2019-20*",
+       caption = "**Source:** Sport England, Active Lives Survey, November 2019-20",
        fill = "Activity Level") +
   scale_y_discrete(limits = rev,
                    expand = c(0,0)) +
@@ -945,12 +817,10 @@ ActiveLivesGaps %>%
   xlab("Inactivity Gap")  +
   ylab("") 
 
-
-
-##Gender
+### Gender ----
 
 ggplot(data = GenderInactive,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+       aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
   geom_text(data = GenderInactive %>% filter(Release == "Nov 15-16"),
             aes(label = Demographic),
@@ -958,18 +828,18 @@ ggplot(data = GenderInactive,
             vjust = -1,
             fontface = "bold") +
   geom_text(data = GenderInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_x = 0.3) +
   ylim(20,35) +
   theme_GS() +
   scale_color_manual(values = GS_cols %>% unname) +
   labs(title = "Greater Manchester Inactivity Rate By Gender",
        y = "Inactivity Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
+       caption = "**Source:** Sport England Active Lives Survey") +
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
-##Borough Comparision
+#### Borough Comparison ----
 
 ActiveLivesGaps %>%
   filter(Release == "Nov 19-20") %>%
@@ -979,7 +849,7 @@ ActiveLivesGaps %>%
   geom_bar(stat = "identity") +
   geom_bar_text(color = "black") +
   labs(title = "Gender Inactivity Gap by Area",
-       caption = "**Source:** *Sport England, Active Lives Survey, November 2019-20*",
+       caption = "**Source:** Sport England, Active Lives Survey, November 2019-20",
        fill = "Activity Level") +
   scale_y_discrete(limits = rev,
                    expand = c(0,0)) +
@@ -997,10 +867,10 @@ ActiveLivesGaps %>%
   xlab("Inactivity Gap")  +
   ylab("") 
 
-##Disability
+### Disability ----
 
 ggplot(data = DisabilityInactive,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+       aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
   geom_text(data = DisabilityInactive %>% filter(Release == "Nov 15-16"),
             aes(label = Demographic),
@@ -1008,18 +878,18 @@ ggplot(data = DisabilityInactive,
             vjust = -1,
             fontface = "bold") +
   geom_text(data = DisabilityInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_x = 0.3) +
   ylim(20,50) +
   theme_GS() +
   scale_color_manual(values = GS_cols %>% unname) +
   labs(title = "Greater Manchester Inactivity Rate By Disability Status",
        y = "Inactivity Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
+       caption = "**Source:** Sport England Active Lives Survey") +
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
-#Borough COmparision
+#### Borough Comparison ----
 
 ActiveLivesGaps %>%
   filter(Release == "Nov 19-20") %>%
@@ -1029,7 +899,7 @@ ActiveLivesGaps %>%
   geom_bar(stat = "identity") +
   geom_bar_text(color = "white") +
   labs(title = "Disability Inactivity Gap by Area",
-       caption = "**Source:** *Sport England, Active Lives Survey, November 2019-20*",
+       caption = "**Source:** Sport England, Active Lives Survey, November 2019-20",
        fill = "Activity Level") +
   scale_y_discrete(limits = rev,
                    expand = c(0,0)) +
@@ -1047,10 +917,10 @@ ActiveLivesGaps %>%
   xlab("Inactivity Gap")  +
   ylab("") 
 
-##Ethnicity
+### Ethnicity ----
 
 ggplot(data = EthnicityInactive,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+       aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
   geom_text(data = EthnicityInactive %>% filter(Release == "Nov 15-16"),
             aes(label = Demographic),
@@ -1058,7 +928,7 @@ ggplot(data = EthnicityInactive,
             vjust = -1,
             fontface = "bold") +
   geom_text(data = EthnicityInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_x = 0.3) +
   ylim(20,50) +
   theme_GS() +
@@ -1067,113 +937,99 @@ ggplot(data = EthnicityInactive,
   labs(title = "Greater Manchester Inactivity Rate By Ethnicity",
        y = "Inactivity Rate (%)",
        x = "",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
+       caption = "**Source:** Sport England Active Lives Survey") +
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
-
-ggplot(data = ActiveLives %>%
-         filter(Area == "Greater Manchester") %>%
-         filter(!is.na(Release)) %>%
-         filter(ActivityLevel == "Inactive") %>%
-         filter(DemographicType == "Ethnicity") %>%
-         filter(Demographic != "Chinese" ) %>%
-         filter(Demographic != "Mixed")
-         ,
-       aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
-  geom_line(size = 1) +
-  geom_text(data = EthnicityInactive %>% filter(Release == "Nov 15-16"),
-            aes(label = Demographic),
-            hjust = 0,
-            vjust = -0.4,
-            fontface = "bold") +
-  geom_text_repel(data = EthnicityInactive %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
-            nudge_x = 0.3) +
-  ylim(0,50) +
-  theme_GS() +
-  scale_color_manual(values = c("#5B2D86", "#D21C60", "#8A6EAD", "#D7697A",
-                                "#5197D1", "#FCCA58", "#3C3C3B", "#73FC48")) +
-  labs(title = "Greater Manchester Inactivity Rate By Ethnicity",
-       subtitle = "Due to the small sample size there is no data on inactivity for those from 'other ethnic\ngroups' in November 2018/19. Data on those who identified as Chinese or Mixed\nhave been removed from this graph due to thenumber of releases without data.",
-       y = "Inactivity Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
-  theme(legend.position = "none",
-        axis.title.x = element_text(hjust = 1, vjust = 1),
-        plot.caption = element_markdown())
-
+# Not necessary
+# ggplot(data = ActiveLives %>%
+#          filter(Area == "Greater Manchester") %>%
+#          filter(!is.na(Release)) %>%
+#          filter(ActivityLevel == "Inactive") %>%
+#          filter(DemographicType == "Ethnicity") %>%
+#          filter(Demographic != "Chinese" ) %>%
+#          filter(Demographic != "Mixed")
+#          ,
+#        aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+#   geom_line(size = 1) +
+#   geom_text(data = EthnicityInactive %>% filter(Release == "Nov 15-16"),
+#             aes(label = Demographic),
+#             hjust = 0,
+#             vjust = -0.4,
+#             fontface = "bold") +
+#   geom_text_repel(data = EthnicityInactive %>% filter(Release == "Nov 19-20"),
+#             aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+#             nudge_x = 0.3) +
+#   ylim(0,50) +
+#   theme_GS() +
+#   scale_color_manual(values = c("#5B2D86", "#D21C60", "#8A6EAD", "#D7697A",
+#                                 "#5197D1", "#FCCA58", "#3C3C3B", "#73FC48")) +
+#   labs(title = "Greater Manchester Inactivity Rate By Ethnicity",
+#        subtitle = "Due to the small sample size there is no data on inactivity for those from 'other ethnic\ngroups' in November 2018/19. Data on those who identified as Chinese or Mixed\nhave been removed from this graph due to thenumber of releases without data.",
+#        y = "Inactivity Rate (%)",
+#        caption = "**Source:** Sport England Active Lives Survey") +
+#   theme(legend.position = "none",
+#         axis.title.x = element_text(hjust = 1, vjust = 1),
+#         plot.caption = element_markdown())
 
 # Walking -----------------------------------------------------------------
 
+## Import data ----
 Walking <- ActiveLives %>%
   filter(ActivityLevel == "Walking") %>%
-  filter(Area == "Greater Manchester")
-
-Walking %>%
-  filter(Demographic != "All walking") %>%
+  filter(Release != "Nov 15-16") %>%
   filter(Release != "May 16-17") %>%
+  filter(Release != "Nov 16-17") %>%
   filter(Release != "May 17-18") %>%
-  filter(Release != "May 18-19") %>%
-  filter(Release != "May 19-20") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+  filter(Area != "England")
+
+Walking$Area <- str_wrap(Walking$Area, width = 10)
+
+Walking$Value <- Walking$Value*100
+
+### Area order ----
+Walking$Area <- factor(Walking$Area, levels = 
+                             c("England", "Greater\nManchester",
+                               "Bolton", "Bury", "Manchester",
+                               "Oldham", "Rochdale", "Salford",
+                               "Stockport", "Tameside",
+                               "Trafford", "Wigan"), ordered = TRUE)
+
+## Walking graphs ----
+
+### By activity ----
+#### All walking types ----
+Walking %>%
+  filter(Area == "Greater\nManchester") %>%
+  ggplot(aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
-  geom_text(data = Walking %>% filter(Release == "Nov 15-16"),
+  geom_text(data = Walking %>% filter(Release == "Nov 17-18") %>%
+              filter(Area == "Greater\nManchester"),
             aes(label = Demographic),
             hjust = 0,
             vjust = -1,
             fontface = "bold") +
   geom_text(data = Walking %>% filter(Release == "Nov 19-20") %>%
-              filter(Demographic != "All walking") ,
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
+              filter(Area == "Greater\nManchester"),
+            aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
             nudge_x = 0.2) +
-  ylim(20,50) +
   theme_GS() +
   scale_color_manual(values = GS_cols %>% unname) +
   labs(title = "Walking Rates in Greater Manchester",
        subtitle = "Adults who have walked at least twice in the past 28 days",
        y = "Participation Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
+       caption = "**Source:** Sport England Active Lives Survey") +
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
-Walking %>%
-  filter(Release != "Nov 15-16") %>%
-  filter(Release != "May 16-17") %>%
-  filter(Release != "Nov 16-17") %>%
-  filter(Release != "May 17-18") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
-  geom_line(size = 1) +
-  geom_text(data = Walking %>% filter(Release == "Nov 17-18"),
-            aes(label = Demographic),
-            hjust = 0,
-            vjust = -1,
-            fontface = "bold") +
-  geom_text(data = Walking %>% filter(Release == "Nov 19-20"),
-            aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
-            nudge_x = 0.2) +
-  ylim(20,60) +
-  theme_GS() +
-  scale_color_manual(values = GS_cols %>% unname) +
-  labs(title = "Walking Rates in Greater Manchester",
-       subtitle = "Adults who have walked at least twice in the past 28 days",
-       y = "Participation Rate (%)",
-       caption = "**Source:** *Sport England Active Lives Survey*") +
-  theme(legend.position = "none",
-        plot.caption = element_markdown())
-
-
-##Walking for Leisure ----
-Walking %>%
-  filter(Release != "Nov 15-16") %>%
-  filter(Release != "May 16-17") %>%
-  filter(Release != "Nov 16-17") %>%
-  filter(Release != "May 17-18") %>%
+#### Walking for Leisure ----
+Walking  %>%
+  filter(Area == "Greater\nManchester") %>%
   filter(Demographic == "Walking for leisure") %>%
-  ggplot(aes(x = Release, y = Value*100, color = Demographic, group = Demographic)) +
+  ggplot(aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
   geom_line(size = 1) +
-  geom_text(aes(label = paste(sprintf("%0.1f", round(Value*100, digits = 2)),"%")),
-            nudge_y = 2) +
-  ylim(20,60) +
+  geom_text(aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
+            nudge_y = 0.5) +
   theme_GS() +
   scale_color_manual(values = GS_cols %>% unname) +
   labs(title = "Walking Rates in Greater Manchester",
@@ -1183,3 +1039,104 @@ Walking %>%
   theme(legend.position = "none",
         plot.caption = element_markdown())
 
+#### Walking for Travel ----
+Walking  %>%
+  filter(Area == "Greater\nManchester") %>%
+  filter(Demographic == "Walking for travel") %>%
+  ggplot(aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
+  geom_line(size = 1) +
+  geom_text(aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
+            nudge_y = 0.5) +
+  theme_GS() +
+  scale_color_manual(values = GS_cols %>% unname) +
+  labs(title = "Walking Rates in Greater Manchester",
+       subtitle = "Adults who have walked for travel at least twice in the past 28 days",
+       y = "Participation Rate (%)",
+       caption = "**Source:** Sport England Active Lives Survey") +
+  theme(legend.position = "none",
+        plot.caption = element_markdown())
+
+#### All walking ----
+Walking  %>%
+  filter(Area == "Greater\nManchester") %>%
+  filter(Demographic == "All walking") %>%
+  ggplot(aes(x = Release, y = Value, color = Demographic, group = Demographic)) +
+  geom_line(size = 1) +
+  geom_text(aes(label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%")),
+            nudge_y = 0.5) +
+  theme_GS() +
+  scale_color_manual(values = GS_cols %>% unname) +
+  labs(title = "Walking Rates in Greater Manchester",
+       subtitle = "Adults who have walked at least twice in the past 28 days",
+       y = "Participation Rate (%)",
+       caption = "**Source:** Sport England Active Lives Survey") +
+  theme(legend.position = "none",
+        plot.caption = element_markdown())
+
+### Borough Comparisons ----
+
+#### All Walking ----
+Walking  %>%
+  filter(Release == "Nov 19-20") %>%
+  filter(Demographic == "All walking") %>%
+  ggplot(aes(y = Area, x = Value, fill = Demographic, group = Demographic,
+             label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%"))) +
+  geom_bar(stat = 'identity') +
+  geom_bar_text(color = 'white', fontface = 'bold') +
+  theme_GS() +
+  labs(title = "All Walking Rates by Area",
+       subtitle = "Adults who have walked at least twice\nin the past 28 days",
+       x = "Participation Rate (%)",
+       y = '',
+       caption = "**Source:** Sport England Active Lives Survey") +
+  theme(legend.position = "none",
+        plot.caption = element_markdown(),
+        panel.grid.major.y = element_blank(), 
+        panel.grid.major.x = element_line(color = "#a3a3a2")) +
+  scale_fill_manual(values = GS_cols %>% unname,
+                    breaks = c("Active", "Fairly Active")) +
+  scale_y_discrete(limits = rev)
+
+#### Walking for leisure ----
+Walking  %>%
+  filter(Release == "Nov 19-20") %>%
+  filter(Demographic == "Walking for leisure") %>%
+  ggplot(aes(y = Area, x = Value, fill = Demographic, group = Demographic,
+             label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%"))) +
+  geom_bar(stat = 'identity') +
+  geom_bar_text(color = 'white', fontface = 'bold') +
+  theme_GS() +
+  labs(title = "Walking for Leisure Rates by Area",
+       subtitle = "Adults who have walked for leisure at least twice\nin the past 28 days",
+       x = "Participation Rate (%)",
+       y = '',
+       caption = "**Source:** Sport England Active Lives Survey") +
+  theme(legend.position = "none",
+        plot.caption = element_markdown(),
+        panel.grid.major.y = element_blank(), 
+        panel.grid.major.x = element_line(color = "#a3a3a2")) +
+  scale_fill_manual(values = GS_cols %>% unname,
+                    breaks = c("Active", "Fairly Active")) +
+  scale_y_discrete(limits = rev)
+
+#### Walking for travel ----
+Walking  %>%
+  filter(Release == "Nov 19-20") %>%
+  filter(Demographic == "Walking for travel") %>%
+  ggplot(aes(y = Area, x = Value, fill = Demographic, group = Demographic,
+             label = paste(sprintf("%0.1f", round(Value, digits = 2)),"%"))) +
+  geom_bar(stat = 'identity') +
+  geom_bar_text(color = 'white', fontface = 'bold') +
+  theme_GS() +
+  labs(title = "Walking for Travel Rates by Area",
+       subtitle = "Adults who have walked for travel at least twice\nin the past 28 days",
+       x = "Participation Rate (%)",
+       y = '',
+       caption = "**Source:** Sport England Active Lives Survey") +
+  theme(legend.position = "none",
+        plot.caption = element_markdown(),
+        panel.grid.major.y = element_blank(), 
+        panel.grid.major.x = element_line(color = "#a3a3a2")) +
+  scale_fill_manual(values = GS_cols %>% unname,
+                    breaks = c("Active", "Fairly Active")) +
+  scale_y_discrete(limits = rev)

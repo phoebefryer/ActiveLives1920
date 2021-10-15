@@ -261,3 +261,27 @@ ageSmall %>%
        caption = "**Source:** Sport England, Active Lives Survey, November 2019-20") +
   theme(plot.caption = element_markdown(),
         axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1))
+
+
+# Older adults ------------------------------------------------------------
+
+age5070 <- read.csv("data/age5070.csv")
+
+age5070 %>%
+  filter(ActivityLevel == "Inactive") %>%
+  ggplot(aes(x = Demographic, y = Percent, fill = Release, label = paste(Percent, "%"))) +
+  geom_bar(stat = "identity",
+           position = "dodge") +
+  geom_text(color = "white", 
+            family = "Verdana",
+            fontface = "bold",
+            position = position_dodge(0.9),
+            vjust = 1.2) +
+  theme_GS() +
+  ylab("Inactivity Rate (%)") +
+  xlab("") +
+  scale_fill_manual(values = GS_cols %>% unname) +
+  labs(title = "Inactivity Rates Amongst Older Adults in Greater Manchester",
+       caption = "**Source:** Sport England, Active Lives Survey") +
+  theme(plot.caption = element_markdown(),
+        legend.position = c(0.1,0.9))

@@ -59,7 +59,7 @@ theme_GMM2 <- function() {
     #key text
     plot.title = element_text(
       family = font,
-      colour = "#009FE3",
+      colour = "#8C1D82",
       size = 16,
       face = 'bold',          
       hjust = 0,              
@@ -104,16 +104,18 @@ theme_GMM2 <- function() {
 }
   
 GMM_cols <- c(
-  `blue` = "#009FE3",
+  `purple` = "#8C1D82",
   `pink` = "#E5007E",
+  `dark blue` = "#0069b4",
+  `pale purple` = "#8A5EA4",
   `orange` = "#F39200",
   `green` = "#95C11F",
-  `purple` = "#8C1D82",
-  `pale purple` = "#8A5EA4",
+  `blue` = "#009FE3",
   `turquoise` = "#009E83",
-  `dark blue` = "#0069b4",
   `yellow` = "#Fdc300",
-  `grey` = "#706f6f" 
+  `grey` = "#706f6f",
+  `black` = "#000000",
+  `GSpurple` = "#5B2D86"
 )
 
 GS_cols <- c(
